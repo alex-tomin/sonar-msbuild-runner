@@ -87,9 +87,10 @@ namespace SonarQube.TeamBuild.Integration
             string toolPath = null;
 
             logger.LogMessage(Resources.CONV_DIAG_LocatingCodeCoverageTool);
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(VisualStudioRegistryPath, false))
+            using (RegistryKey key = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32)
+                                        .OpenSubKey(VisualStudioRegistryPath, false))
             {
-                string[] keys = key.GetSubKeyNames();
+                string[] keys = key.GetSubKeyNames();	
 
                 // Find the ShellFolder paths for the installed VS versions
                 IDictionary<string, string> versionFolderMap = GetVsShellFolders(key, keys);
@@ -127,11 +128,13 @@ namespace SonarQube.TeamBuild.Integration
                     // Check for the shell dir subkey
                     string shellDir = vsKey.GetValue(key + "\\ShellFolder", null) as string;
 
-                    string shellFolder = Registry.GetValue(vsKey.Name + "\\" + key, "ShellFolder", null) as string;
-                    if (shellFolder != null)
-                    {
-                        versionFolderMap[key] = shellFolder;
-                    }
+                    var sybKey = vsKey.OpenSubKey(key);
+                    if (sybKey == null) continue;
+                    
+                    string shellFolder = sybKey.GetValue("ShellFolder", null) as string;
+                    if (shellFolder == null) continue;
+                    
+                    versionFolderMap[key] = shellFolder;
                 }
             }
             return versionFolderMap;
